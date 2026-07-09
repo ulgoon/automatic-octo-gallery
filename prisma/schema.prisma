@@ -1,0 +1,74 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// Singleton row (id always 1) holding the configured, realpath-resolved photo root.
+model Settings {
+  id        Int      @id @default(1)
+  rootPath  String
+  updatedAt DateTime @updatedAt
+}
+
+enum ThumbStatus {
+  PENDING
+  READY
+  FAILED
+}
+
+model Photo {
+  id              String      @id @default(cuid())
+  relPath         String      @unique
+  filename        String
+  size            Int
+  mtimeMs         Float
+  contentHash     String?
+  width           Int?
+  height          Int?
+  thumbStatus     ThumbStatus @default(PENDING)
+  deletedAt       DateTime?
+  originalRelPath String? // pre-delete relPath, used as the restore target
+
+  // Exhibition metadata — empty until curated
+  title    String?
+  caption  String?
+  takenAt  DateTime?
+  location String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tags PhotoTag[]
+
+  @@index([deletedAt])
+  @@index([contentHash])
+}
+
+model Tag {
+  id            String   @id @default(cuid())
+  name          String   @unique
+  createdAt     DateTime @default(now())
+  mergedFromIds String?
+
+  photos PhotoTag[]
+}
+
+model PhotoTag {
+  photoId String
+  tagId   String
+  addedAt DateTime @default(now())
+
+  photo Photo @relation(fields: [photoId], references: [id], onDelete: Cascade)
+  tag   Tag   @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([photoId, tagId])
+  @@index([tagId])
+  @@index([photoId])
+}
